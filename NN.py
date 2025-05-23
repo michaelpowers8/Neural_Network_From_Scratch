@@ -181,9 +181,6 @@ def make_predictions(X:np.ndarray, W1:np.ndarray, b1:np.ndarray, W2:np.ndarray, 
     return predictions
 
 def main():    
-    get_variable_info().to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
-
-if __name__ == "__main__":
     random_state:int = 42
 
     data = np.column_stack(make_classification(n_samples=10_000,n_features=10,n_informative=3,n_redundant=1,random_state=random_state,n_classes=3,n_clusters_per_class=2))
@@ -211,5 +208,7 @@ if __name__ == "__main__":
     accuracy_test:float = get_accuracy(test_predictions,y_test)
 
     print(f"Prediction accuracy on training set: {accuracy_train}\nPrediction accuracy on test set: {accuracy_test}")
+    get_variable_info().to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
 
+if __name__ == "__main__":
     main()
