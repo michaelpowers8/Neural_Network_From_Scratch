@@ -204,7 +204,7 @@ if __name__ == "__main__":
     y_train:np.ndarray = y_train.astype(int)
     X_train:np.ndarray = training_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
 
-    W1, b1, W2, b2 = gradient_descent(X_train, y_train, 500, 0.1)
+    W1, b1, W2, b2 = gradient_descent(X_train, y_train, 10_000, 0.01)
     train_predictions = make_predictions(X_train, W1, b1, W2, b2)
     test_predictions = make_predictions(X_test, W1, b1, W2, b2)
     accuracy_train:float = get_accuracy(train_predictions,y_train)
