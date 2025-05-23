@@ -163,14 +163,14 @@ def get_accuracy(predictions:np.ndarray, Y:np.ndarray) -> float:
 def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:float) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     unique_values = np.unique(Y, return_counts=False) # Finding all the unique class values in the array Y
     num_classes:int = len(unique_values)  # Count of unique values
-    W1, b1, W2, b2 = initialize_parameters(input_size=X.shape[0],hidden_layer_size=64,output_size=num_classes)
+    W1, b1, W2, b2 = initialize_parameters(input_size=X.shape[0],hidden_layer_size=128,output_size=num_classes)
     for i in range(iterations):
         Z1, A1, Z2, A2 = forward_propogation(W1, b1, W2, b2, X)
         dW1, db1, dW2, db2 = backwards_propogation(Z1, A1, Z2, A2, W1, W2, X, Y)
         W1, b1, W2, b2 = update_parameters(W1, b1, W2, b2, dW1, db1, dW2, db2, learning_rate)
 
         if(i % 100 == 0):
-            print(f"Iterations complete: {i}/{iterations}")
+            print(f"Iterations complete: {i:,.0f}/{iterations:,.0f}")
             predictions = get_predictions(A2)
             print(f"Accuracy: {get_accuracy(predictions,Y)}\n")
     return W1, b1, W2, b2
@@ -182,8 +182,9 @@ def make_predictions(X:np.ndarray, W1:np.ndarray, b1:np.ndarray, W2:np.ndarray, 
 
 def main():    
     random_state:int = 42
+    np.random.seed(random_state)
 
-    data = np.column_stack(make_classification(n_samples=10_000,n_features=10,n_informative=3,n_redundant=1,random_state=random_state,n_classes=3,n_clusters_per_class=2))
+    data = np.column_stack(make_classification(n_samples=100_000,n_features=8,n_informative=4,random_state=random_state,n_classes=2,n_clusters_per_class=2))
     training_data = data[0:(round(len(data)*0.8))]
     test_data = data[(round(len(data)*0.8)):]
     # data = np.array(data) # Convert DataFrame to ndarray to allow mathematical manipulation easier and more efficient
@@ -200,6 +201,9 @@ def main():
     y_train:np.ndarray = training_data[-1] # Answer is the last value
     y_train:np.ndarray = y_train.astype(int)
     X_train:np.ndarray = training_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
+
+    # X_train = (X_train - np.mean(X_train, axis=0)) / np.std(X_train, axis=0)
+    # X_test = (X_test - np.mean(X_test, axis=0)) / np.std(X_test, axis=0)
 
     W1, b1, W2, b2 = gradient_descent(X_train, y_train, 10_000, 0.01)
     train_predictions = make_predictions(X_train, W1, b1, W2, b2)
