@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.datasets import make_regression,make_classification
+from sklearn.datasets import make_classification
 import hashlib
 import sys
 
@@ -208,6 +208,7 @@ def main():
     accuracy_test:float = get_accuracy(test_predictions,y_test)
 
     print(f"Prediction accuracy on training set: {accuracy_train}\nPrediction accuracy on test set: {accuracy_test}")
+    
     get_variable_info().to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
 
 if __name__ == "__main__":
