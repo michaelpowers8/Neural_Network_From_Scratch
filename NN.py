@@ -50,13 +50,13 @@ def initialize_parameters(input_size:int, hidden_layer_size:int, output_size:int
     
     :param input_size: The number of features in the training set.
     :param hidden_layer_size: The number of neurons that will run calculations on all inputs (Can be any integer, typically a power of 2).
-    :param outpus_size: The number of classes the neural network can choose from in a classification problem.
+    :param output_size: The number of classes the neural network can choose from in a classification problem.
     :return: All the weights and biases that will be used to run the training process in gradient descent for the neural network.
     """
     W1 = np.random.rand(input_size,hidden_layer_size) * 0.01 # First weight that will be multiplied by all of the inputs
-    b1 = np.random.rand(hidden_layer_size,1) # First constant bias term that will be added after each input is multiplied by W1
+    b1 = np.zeros((hidden_layer_size,1)) # First constant bias term that will be added after each input is multiplied by W1 (can also be an array of 0's)
     W2 = np.random.rand(hidden_layer_size,output_size) * 0.01 # Second weight that will be applied after the activation function (typically ReLU function)
-    b2 = np.random.rand(output_size,1) # Second constant bias term that will be added after each hiiden layer input is multiplied by W2
+    b2 = np.zeros((output_size,1)) # Second constant bias term that will be added after each hiiden layer input is multiplied by W2(can also be an array of 0's)
 
     return W1,b1,W2,b2
 
@@ -105,7 +105,7 @@ def forward_propogation(W1:np.ndarray, b1:np.ndarray, W2:np.ndarray, b2:np.ndarr
     >>> Z1 -> The resulting array of the dot product of X and W1 plus b1
     >>> A1 -> Array after applying ReLU function to Z1
     >>> Z2 -> The resulting array of the dot product of A1 and W2 plus b2
-    >>> A2 -> Array after applying ReLU function to Z2.
+    >>> A2 -> Array after applying softmax function to Z2.
     """
     Z1:np.ndarray = W1.dot(X) + b1
     A1:np.ndarray = ReLU(Z1)
@@ -127,16 +127,59 @@ def one_hot_encode(Y:np.ndarray) -> np.ndarray:
     return one_hot_Y
 
 def backwards_propogation(Z1:np.ndarray, A1:np.ndarray, Z2:np.ndarray, A2:np.ndarray, W1:np.ndarray, W2:np.ndarray, X:np.ndarray, Y:np.ndarray):
-    m:int = Y.size
-    one_hot_Y:np.ndarray = one_hot_encode(Y)
-    dZ2:np.ndarray = A2 - one_hot_Y # Measures how much the output layer is off compared to the actual expected answer
-    dW2 = (1 / m) * dZ2.dot(A1.T) # Derivative of the loss function with the respect to the weights in layer 2
-    db2 = (1 / m) * np.sum(dZ2) # Average of the absolute error. On average, how far off was the model from the answer 
-    dZ1:np.ndarray = W2.T.dot(dZ2) * derivative_ReLU(Z1) # Apply the weights of errors from layer 2 onto layer 1 multiplied by the derivative of the activation function applied to Z1
-    dW1 = (1 / m) * (dZ1.dot(X.T))
-    db1 = (1 / m) * np.sum(dZ1)
+    """
+    Perform the backwards propogation process to calculate the error in the gradient function and how much the weights and biases contributed to the errors.
 
-    return dW1, db1, dW2, db2
+    Return
+    --------
+    >>> dW1 -> The derivative of the loss function with respect to the weights in layer 1. Informs the neural network how much the input layer weights contributed to the loss.
+    >>> db1 -> The mean average of the absolute error. Informs the neural network how much the bias terms contributed to the loss found at the hidden layer.
+    >>> dW2 -> The derivative of the loss function with respect to the weights in layer 2. Informs the neural network how much the hidden layer weights contributed to the loss.
+    >>> db2 -> The mean average of the absolute error. Informs the neural network how much the bias terms contributed to the loss found at the output layer.
+    """
+    m:int = Y.size
+    one_hot_Y:np.ndarray = one_hot_encode(Y) # See one_hot_encode_function above for details
+    dZ2:np.ndarray = A2 - one_hot_Y # Measures how much the output layer is off compared to the actual expected answer. More technically, the error gradient at the output layer
+    dW2 = (1 / m) * dZ2.dot(A1.T) # Derivative of the loss function with the respect to the weights in layer 2. Measures how much the weights contributed to the loss found in dZ2
+    db2 = (1 / m) * np.sum(dZ2) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ2
+    dZ1:np.ndarray = W2.T.dot(dZ2) * derivative_ReLU(Z1) # Apply the weights of errors from layer 2 onto layer 1 multiplied by the derivative of the activation function applied to Z1
+    dW1 = (1 / m) * (dZ1.dot(X.T)) # Derivative of the loss function with the respect to the weights in layer 1. Measures how much the weights contributed to the loss found in dZ1
+    db1 = (1 / m) * np.sum(dZ1) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ1
+ 
+    return dW1, db1, dW2, db2 
+
+def update_parameters(W1:np.ndarray,b1:np.ndarray,W2:np.ndarray,b2:np.ndarray,dW1:np.ndarray,db1:np.ndarray,dW2:np.ndarray,db2:np.ndarray,learning_rate:float):
+    W1:np.ndarray = W1 - learning_rate*dW1
+    b1:np.ndarray = b1 - learning_rate*db1
+    W2:np.ndarray = W2 - learning_rate*dW2
+    b2:np.ndarray = b2 - learning_rate*db2
+    return W1, b1, W2, b2
+
+def get_predictions(A2:np.ndarray) -> np.ndarray:
+    return np.argmax(A2,0)
+
+def get_accuracy(predictions:np.ndarray, Y:np.ndarray) -> float:
+    return np.sum(predictions == Y) / Y.size
+
+def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:float) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+    unique_values = np.unique(Y, return_counts=False) # Finding all the unique class values in the array Y
+    num_classes:int = len(unique_values)  # Count of unique values
+    W1, b1, W2, b2 = initialize_parameters(input_size=X.shape[0],hidden_layer_size=64,output_size=num_classes)
+    for i in range(iterations):
+        Z1, A1, Z2, A2 = forward_propogation(W1, b1, W2, b2, X)
+        dW1, db1, dW2, db2 = backwards_propogation(Z1, A1, Z2, A2)
+        W1, b1, W2, b2 = update_parameters(W1, b1, W2, b2, dW1, db1, dW2, db2, learning_rate)
+
+        if(i % 100 == 0):
+            print(f"Iterations complete: {i}/{iterations}")
+            predictions = get_predictions(A2)
+            print(f"Accuracy: {get_accuracy(predictions,Y)}\n")
+    return W1, b1, W2, b2
+        
+def make_predictions(X:np.ndarray, W1:np.ndarray, b1:np.ndarray, W2:np.ndarray, b2:np.ndarray):
+    _, _, _, A2 = forward_propogation(W1, b1, W2, b2, X)
+    predictions = get_predictions(A2)
+    return predictions
 
 def main():    
     get_variable_info().to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
@@ -152,15 +195,20 @@ if __name__ == "__main__":
     m,n = training_data.shape # M x N matrix where M is currently the number of example rows and N is the number of features per set plus the target column
     np.random.shuffle(data) # Shuffle data before splitting data into train and validating sets that are used in training
 
-    data_valid = training_data[:round(len(training_data)*0.1)].T # Cross validation set to ensure overfitting not occurring. Transposed so columns represent images
-    y_valid = data_valid[-1] # Answer is the last value
-    X_valid = data_valid[:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of pixels as found in data.shape
+    test_data = test_data.T # Cross validation set to ensure overfitting not occurring. Transposed so columns represent examples
+    y_test = test_data[-1] # Answer is the last value
+    X_test = test_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
 
-    data_train = training_data[round(len(training_data)*0.1):m].T # Actual training set that the neural network will see and learn from
-    y_train = data_train[-1] # Answer is the last value
-    X_train = data_train[:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of pixels as found in data.shape
+    training_data = training_data.T # Actual training set that the neural network will see and learn from
+    y_train = training_data[-1] # Answer is the last value
+    X_train = training_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
 
-    print(X_train.shape)
-    print(y_train)
+    W1, b1, W2, b2 = gradient_descent(X_train, y_train, 500, 0.1)
+    train_predictions = make_predictions(X_train, W1, b1, W2, b2)
+    test_predictions = make_predictions(X_test, W1, b1, W2, b2)
+    accuracy_train:float = get_accuracy(train_predictions,y_test)
+    accuracy_test:float = get_accuracy(test_predictions,y_test)
+
+    print(f"Prediction accuracy on training set: {accuracy_train}\nPrediction accuracy on test set: {accuracy_test}")
 
     main()
