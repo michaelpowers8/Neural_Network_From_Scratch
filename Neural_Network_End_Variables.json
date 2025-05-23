@@ -1,0 +1,123 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"index",
+                "type":"integer"
+            },
+            {
+                "name":"Variable Name",
+                "type":"string"
+            },
+            {
+                "name":"Type",
+                "type":"string"
+            },
+            {
+                "name":"Hash",
+                "type":"string"
+            },
+            {
+                "name":"Size (bytes)",
+                "type":"integer"
+            }
+        ],
+        "primaryKey":[
+            "index"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+        {
+            "index":0,
+            "Variable Name":"random_state",
+            "Type":"int",
+            "Hash":"73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+            "Size (bytes)":28
+        },
+        {
+            "index":1,
+            "Variable Name":"data",
+            "Type":"ndarray",
+            "Hash":"ec6d68b425934c81d89bafbf5839358a5d3e0d920e763f90855efafb334a87e5",
+            "Size (bytes)":880128
+        },
+        {
+            "index":2,
+            "Variable Name":"training_data",
+            "Type":"ndarray",
+            "Hash":"021a62ee07f752fb4cef8855f39cb94d801e0afd3950badfa999225b4d2f9d91",
+            "Size (bytes)":128
+        },
+        {
+            "index":3,
+            "Variable Name":"test_data",
+            "Type":"ndarray",
+            "Hash":"358c1f1fd29f554c0e34c0f8df4aee0f58b69bf1cca1fea960a5c07b8b7bc938",
+            "Size (bytes)":128
+        },
+        {
+            "index":4,
+            "Variable Name":"m",
+            "Type":"int",
+            "Hash":"ad5f9478d603fe97eae2bbff07f76fe7f18610343b5f3bc8e00945ee51b30d2c",
+            "Size (bytes)":28
+        },
+        {
+            "index":5,
+            "Variable Name":"n",
+            "Type":"int",
+            "Hash":"4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8",
+            "Size (bytes)":28
+        },
+        {
+            "index":6,
+            "Variable Name":"data_valid",
+            "Type":"ndarray",
+            "Hash":"9edacc8e0e081e828e31f7a6a913660c18035109752b350bc3b766976de63913",
+            "Size (bytes)":128
+        },
+        {
+            "index":7,
+            "Variable Name":"y_valid",
+            "Type":"ndarray",
+            "Hash":"90e0c184b67eb352415d4053e64a914dc7fea0d1148c3cee43cd383aff242f9b",
+            "Size (bytes)":112
+        },
+        {
+            "index":8,
+            "Variable Name":"X_valid",
+            "Type":"ndarray",
+            "Hash":"d78044c2b3d231a45d6b6162d33aa596e39b62280173dc0db90681a85dd03152",
+            "Size (bytes)":64128
+        },
+        {
+            "index":9,
+            "Variable Name":"data_train",
+            "Type":"ndarray",
+            "Hash":"1f588035d747819c3094ec59c480e20dfe7cba39e8749cf9418f6f50c3fae5f7",
+            "Size (bytes)":128
+        },
+        {
+            "index":10,
+            "Variable Name":"y_train",
+            "Type":"ndarray",
+            "Hash":"f2340b74ca6eeef8d25de888a7fcb2a49138cf43b432b80f197d007aab9bce49",
+            "Size (bytes)":112
+        },
+        {
+            "index":11,
+            "Variable Name":"X_train",
+            "Type":"ndarray",
+            "Hash":"f774f63feb5e62600edb97c41b032ae92d549559b37e7e3e7ea75e7796115d13",
+            "Size (bytes)":576128
+        },
+        {
+            "index":12,
+            "Variable Name":"globals_dict",
+            "Type":"dict",
+            "Hash":"c0cf216cb8983a09fc1e10f8ccb43e7e99da5a254e823e19c30987c2a059e8ff",
+            "Size (bytes)":832
+        }
+    ]
+}
