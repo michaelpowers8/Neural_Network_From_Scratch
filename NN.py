@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.datasets import make_regression,make_classification
 import hashlib
 import sys
@@ -53,9 +52,9 @@ def initialize_parameters(input_size:int, hidden_layer_size:int, output_size:int
     :param output_size: The number of classes the neural network can choose from in a classification problem.
     :return: All the weights and biases that will be used to run the training process in gradient descent for the neural network.
     """
-    W1 = np.random.rand(input_size,hidden_layer_size) * 0.01 # First weight that will be multiplied by all of the inputs
+    W1 = np.random.rand(hidden_layer_size,input_size) * 0.01 # First weight that will be multiplied by all of the inputs
     b1 = np.zeros((hidden_layer_size,1)) # First constant bias term that will be added after each input is multiplied by W1 (can also be an array of 0's)
-    W2 = np.random.rand(hidden_layer_size,output_size) * 0.01 # Second weight that will be applied after the activation function (typically ReLU function)
+    W2 = np.random.rand(output_size,hidden_layer_size) * 0.01 # Second weight that will be applied after the activation function (typically ReLU function)
     b2 = np.zeros((output_size,1)) # Second constant bias term that will be added after each hiiden layer input is multiplied by W2(can also be an array of 0's)
 
     return W1,b1,W2,b2
@@ -121,7 +120,7 @@ def one_hot_encode(Y:np.ndarray) -> np.ndarray:
     :param Y: Array of answers that the neural network is attempting to guess
     :return: Array with c rows and s columns where c is the number of classes in the classification and s is the size of the input Y
     """
-    one_hot_Y = np.zeros((Y.size, Y.max() + 1)) # Create a new matrix of 0's where there are as many rows as Y has rows, and the number of columns is equal to the number of different classes in Y assuming classes are structured from the integers 0 to n-1.
+    one_hot_Y = np.zeros((Y.size, int(Y.max() + 1))) # Create a new matrix of 0's where there are as many rows as Y has rows, and the number of columns is equal to the number of different classes in Y assuming classes are structured from the integers 0 to n-1.
     one_hot_Y[np.arange(Y.size), Y] = 1 # Add one 1 to every row in this array in the specified class position, so if the 3rd element of Y is 5, and the size of Y is 100, then the 3rd element in row 6 of this array will be set to 1
     one_hot_Y = one_hot_Y.T # Transpose the array so that columns are examples instead of rows to be examples
     return one_hot_Y
@@ -167,7 +166,7 @@ def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:f
     W1, b1, W2, b2 = initialize_parameters(input_size=X.shape[0],hidden_layer_size=64,output_size=num_classes)
     for i in range(iterations):
         Z1, A1, Z2, A2 = forward_propogation(W1, b1, W2, b2, X)
-        dW1, db1, dW2, db2 = backwards_propogation(Z1, A1, Z2, A2)
+        dW1, db1, dW2, db2 = backwards_propogation(Z1, A1, Z2, A2, W1, W2, X, Y)
         W1, b1, W2, b2 = update_parameters(W1, b1, W2, b2, dW1, db1, dW2, db2, learning_rate)
 
         if(i % 100 == 0):
@@ -196,17 +195,19 @@ if __name__ == "__main__":
     np.random.shuffle(data) # Shuffle data before splitting data into train and validating sets that are used in training
 
     test_data = test_data.T # Cross validation set to ensure overfitting not occurring. Transposed so columns represent examples
-    y_test = test_data[-1] # Answer is the last value
-    X_test = test_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
+    y_test:np.ndarray = test_data[-1] # Answer is the last value
+    y_test:np.ndarray = y_test.astype(int)
+    X_test:np.ndarray = test_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
 
     training_data = training_data.T # Actual training set that the neural network will see and learn from
-    y_train = training_data[-1] # Answer is the last value
-    X_train = training_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
+    y_train:np.ndarray = training_data[-1] # Answer is the last value
+    y_train:np.ndarray = y_train.astype(int)
+    X_train:np.ndarray = training_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
 
     W1, b1, W2, b2 = gradient_descent(X_train, y_train, 500, 0.1)
     train_predictions = make_predictions(X_train, W1, b1, W2, b2)
     test_predictions = make_predictions(X_test, W1, b1, W2, b2)
-    accuracy_train:float = get_accuracy(train_predictions,y_test)
+    accuracy_train:float = get_accuracy(train_predictions,y_train)
     accuracy_test:float = get_accuracy(test_predictions,y_test)
 
     print(f"Prediction accuracy on training set: {accuracy_train}\nPrediction accuracy on test set: {accuracy_test}")
