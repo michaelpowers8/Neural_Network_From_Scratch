@@ -68,11 +68,31 @@ def ReLU(Z:np.ndarray) -> np.ndarray:
     """
     return np.maximum(Z,0)
 
+def sigmoid(Z:np.ndarray) -> np.ndarray:
+    return np.divide(1,1+np.exp(-Z))
+
+def swish(Z:np.ndarray) -> np.ndarray:
+    """
+    Apply the Swish function on Z which is Swish(Z) = Z/(1+e^(-Z))
+
+    :param Z: The resulting array after applying the dot product to W1 and the input array plus the b1 bias.
+    :return: Numpy array where all values had the Swish function applied to them.
+    """
+    return Z*sigmoid(Z)
+
 def derivative_ReLU(Z:np.ndarray) -> np.ndarray: 
     """
     Apply the derivative of the ReLU function on the array Z. For every element, i, in Z, if i>0, Zi=1, else Zi=0
     """
     return Z > 0
+
+def derivative_Swish(Z:np.ndarray) -> np.ndarray:
+    """
+    If Sigmoid(Z) = 1/(1+e^-Z), and Swish(Z) = Z*(Sigmoid(Z)) = Z/(1+e^-Z), then d/dx(Sigmoid(Z)) = Swish(Z) - Z*(Sigmoid(Z)^2) + Sigmoid(Z)
+    """
+    sigmoid_Z:np.ndarray = sigmoid(Z)
+    swish_Z:np.ndarray = swish(Z)
+    return swish_Z-Z*np.power(sigmoid_Z,2)+sigmoid_Z
 
 def softmax(Z:np.ndarray) -> np.ndarray:
     """
@@ -107,7 +127,7 @@ def forward_propogation(W1:np.ndarray, b1:np.ndarray, W2:np.ndarray, b2:np.ndarr
     >>> A2 -> Array after applying softmax function to Z2.
     """
     Z1:np.ndarray = W1.dot(X) + b1
-    A1:np.ndarray = ReLU(Z1)
+    A1:np.ndarray = swish(Z1)
     Z2:np.ndarray = W2.dot(A1) + b2
     A2:np.ndarray = softmax(Z2) # Predictions of probabilities of classifications
     
@@ -141,7 +161,7 @@ def backwards_propogation(Z1:np.ndarray, A1:np.ndarray, Z2:np.ndarray, A2:np.nda
     dZ2:np.ndarray = A2 - one_hot_Y # Measures how much the output layer is off compared to the actual expected answer. More technically, the error gradient at the output layer
     dW2 = (1 / m) * dZ2.dot(A1.T) # Derivative of the loss function with the respect to the weights in layer 2. Measures how much the weights contributed to the loss found in dZ2
     db2 = (1 / m) * np.sum(dZ2) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ2
-    dZ1:np.ndarray = W2.T.dot(dZ2) * derivative_ReLU(Z1) # Apply the weights of errors from layer 2 onto layer 1 multiplied by the derivative of the activation function applied to Z1
+    dZ1:np.ndarray = W2.T.dot(dZ2) * derivative_Swish(Z1) # Apply the weights of errors from layer 2 onto layer 1 multiplied by the derivative of the activation function applied to Z1
     dW1 = (1 / m) * (dZ1.dot(X.T)) # Derivative of the loss function with the respect to the weights in layer 1. Measures how much the weights contributed to the loss found in dZ1
     db1 = (1 / m) * np.sum(dZ1) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ1
  
@@ -184,7 +204,7 @@ def main():
     random_state:int = 42
     np.random.seed(random_state)
 
-    data = np.column_stack(make_classification(n_samples=100_000,n_features=8,n_informative=4,random_state=random_state,n_classes=2,n_clusters_per_class=2))
+    data = np.column_stack(make_classification(n_samples=10_000,n_features=8,n_informative=4,random_state=random_state,n_classes=2,n_clusters_per_class=2))
     training_data = data[0:(round(len(data)*0.8))]
     test_data = data[(round(len(data)*0.8)):]
     # data = np.array(data) # Convert DataFrame to ndarray to allow mathematical manipulation easier and more efficient
@@ -205,13 +225,13 @@ def main():
     # X_train = (X_train - np.mean(X_train, axis=0)) / np.std(X_train, axis=0)
     # X_test = (X_test - np.mean(X_test, axis=0)) / np.std(X_test, axis=0)
 
-    W1, b1, W2, b2 = gradient_descent(X_train, y_train, 10_000, 0.01)
+    W1, b1, W2, b2 = gradient_descent(X_train, y_train, 1_000, 0.05)
     train_predictions = make_predictions(X_train, W1, b1, W2, b2)
     test_predictions = make_predictions(X_test, W1, b1, W2, b2)
     accuracy_train:float = get_accuracy(train_predictions,y_train)
     accuracy_test:float = get_accuracy(test_predictions,y_test)
 
-    print(f"Prediction accuracy on training set: {accuracy_train}\nPrediction accuracy on test set: {accuracy_test}")
+    print(f"NN Prediction accuracy on training set: {accuracy_train}\nNN Prediction accuracy on test set: {accuracy_test}")
     
     get_variable_info().to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
 
