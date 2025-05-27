@@ -54,9 +54,9 @@ def initialize_parameters(input_size:int, hidden_layer_size:int, output_size:int
     """
     W1 = np.random.rand(hidden_layer_size,input_size) * np.sqrt(2 / input_size) # First weight that will be multiplied by all of the inputs
     b1 = np.zeros((hidden_layer_size,1)) # First constant bias term that will be added after each input is multiplied by W1 (can also be an array of 0's)
-    W2 = np.random.rand(hidden_layer_size,hidden_layer_size) * np.sqrt(2 / input_size) # Second weight that will be applied after the activation function (typically ReLU function)
+    W2 = np.random.rand(hidden_layer_size,hidden_layer_size) * np.sqrt(2 / hidden_layer_size) # Second weight that will be applied after the activation function (typically ReLU function)
     b2 = np.zeros((hidden_layer_size,1)) # Second constant bias term that will be added after each hidden layer input is multiplied by W2(can also be an array of 0's)
-    W3 = np.random.rand(output_size,hidden_layer_size) * np.sqrt(2 / input_size) # Second weight that will be applied after the activation function (typically ReLU function)
+    W3 = np.random.rand(output_size,hidden_layer_size) * np.sqrt(2 / hidden_layer_size) # Second weight that will be applied after the activation function (typically ReLU function)
     b3 = np.zeros((output_size,1)) # Second constant bias term that will be added after each hidden layer input is multiplied by W2(can also be an array of 0's)
 
     return W1,b1,W2,b2,W3,b3
@@ -192,7 +192,7 @@ def get_accuracy(predictions:np.ndarray, Y:np.ndarray) -> float:
 def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:float) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     unique_values = np.unique(Y, return_counts=False) # Finding all the unique class values in the array Y
     num_classes:int = len(unique_values)  # Count of unique values
-    W1, b1, W2, b2, W3, b3 = initialize_parameters(input_size=X.shape[0],hidden_layer_size=128,output_size=num_classes)
+    W1, b1, W2, b2, W3, b3 = initialize_parameters(input_size=X.shape[0],hidden_layer_size=64,output_size=num_classes)
     for i in range(iterations):
         Z1, A1, Z2, A2, Z3, A3 = forward_propogation(W1, b1, W2, b2, W3, b3, X)
         dW1, db1, dW2, db2, dW3, db3 = backwards_propogation(Z1, A1, Z2, A2, Z3, A3, W1, W2, W3, X, Y)
