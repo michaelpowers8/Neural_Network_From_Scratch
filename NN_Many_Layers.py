@@ -156,6 +156,20 @@ def backwards_propogation(forward_propogation_results:dict[str,np.ndarray], para
     """
     Perform the backwards propogation process to calculate the error in the gradient function and how much the weights and biases contributed to the errors.
 
+    Original Code for exactly 2 layers:
+    >>> m:int = Y.size
+    >>> one_hot_Y:np.ndarray = one_hot_encode(Y) # See one_hot_encode_function above for details
+    >>> dZ3:np.ndarray = A3 - one_hot_Y # Measures how much the output layer is off compared to the actual expected answer. More technically, the error gradient at the output layer
+    >>> dW3 = (1 / m) * dZ3.dot(A2.T) # Derivative of the loss function with the respect to the weights in layer 3. Measures how much the weights contributed to the loss found in dZ3
+    >>> db3 = (1 / m) * np.sum(dZ3) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ3
+    >>> dZ2:np.ndarray = W3.T.dot(dZ3) * derivative_Swish(Z2) # Measures how much the output layer is off compared to the actual expected answer. More technically, the error gradient at the output layer
+    >>> dW2 = (1 / m) * dZ2.dot(A1.T) # Derivative of the loss function with the respect to the weights in layer 2. Measures how much the weights contributed to the loss found in dZ2
+    >>> db2 = (1 / m) * np.sum(dZ2) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ2
+    >>> dZ1:np.ndarray = W2.T.dot(dZ2) * derivative_Swish(Z1) # Apply the weights of errors from layer 2 onto layer 1 multiplied by the derivative of the activation function applied to Z1
+    >>> dW1 = (1 / m) * (dZ1.dot(X.T)) # Derivative of the loss function with the respect to the weights in layer 1. Measures how much the weights contributed to the loss found in dZ1
+    >>> db1 = (1 / m) * np.sum(dZ1) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ1
+    >>> return dW1, db1, dW2, db2, dW3, db3
+
     Return
     --------
     >>> dW1 -> The derivative of the loss function with respect to the weights in layer 1. Informs the neural network how much the input layer weights contributed to the loss.
@@ -166,47 +180,48 @@ def backwards_propogation(forward_propogation_results:dict[str,np.ndarray], para
     m:int = Y.size
     one_hot_Y:np.ndarray = one_hot_encode(Y) # See one_hot_encode_function above for details
     backwards_propogation_results:dict[str,np.ndarray] = {}
-    for 
-    dZ2:np.ndarray = A2 - one_hot_Y # Measures how much the output layer is off compared to the actual expected answer. More technically, the error gradient at the output layer
-    dW2 = (1 / m) * dZ2.dot(A1.T) # Derivative of the loss function with the respect to the weights in layer 2. Measures how much the weights contributed to the loss found in dZ2
-    db2 = (1 / m) * np.sum(dZ2) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ2
-    dZ1:np.ndarray = W2.T.dot(dZ2) * derivative_Swish(Z1) # Apply the weights of errors from layer 2 onto layer 1 multiplied by the derivative of the activation function applied to Z1
-    dW1 = (1 / m) * (dZ1.dot(X.T)) # Derivative of the loss function with the respect to the weights in layer 1. Measures how much the weights contributed to the loss found in dZ1
-    db1 = (1 / m) * np.sum(dZ1) # Average of the absolute error. On average, how far off was the model from the answer. Measures how much the biases contributed to the loss found in dZ1
- 
-    return dW1, db1, dW2, db2 
+    for key in range(len(forward_propogation_results)//2,0,-1):
+        if(key==len(forward_propogation_results)//2):
+            backwards_propogation_results[f"dZ{key:.0f}"] = forward_propogation_results[f"A{key:.0f}"] - one_hot_Y
+        else:
+            backwards_propogation_results[f"dZ{key:.0f}"] = parameters[f"W{key+1:.0f}"].T.dot(backwards_propogation_results[f"dZ{key+1:.0f}"]) * derivative_Swish(forward_propogation_results[f"Z{key:.0f}"])
+        if(key==1):
+            backwards_propogation_results[f"dW{key:.0f}"] = (1 / m) * (backwards_propogation_results[f"dZ{key:.0f}"].dot(X.T))
+        else:
+            backwards_propogation_results[f"dW{key:.0f}"] = (1 / m) * (backwards_propogation_results[f"dZ{key:.0f}"].dot(forward_propogation_results[f"A{key-1:.0f}"].T))
+        backwards_propogation_results[f"db{key:.0f}"] = (1 / m) * np.sum(backwards_propogation_results[f"dZ{key:.0f}"])
+    return backwards_propogation_results
 
-def update_parameters(W1:np.ndarray,b1:np.ndarray,W2:np.ndarray,b2:np.ndarray,dW1:np.ndarray,db1:np.ndarray,dW2:np.ndarray,db2:np.ndarray,learning_rate:float):
-    W1:np.ndarray = W1 - learning_rate*dW1
-    b1:np.ndarray = b1 - learning_rate*db1
-    W2:np.ndarray = W2 - learning_rate*dW2
-    b2:np.ndarray = b2 - learning_rate*db2
-    return W1, b1, W2, b2
+def update_parameters(parameters:dict[str,np.ndarray],backwards_propogation_results:dict[str,np.ndarray],learning_rate:float):
+    original_parameters:dict[str,np.ndarray] = parameters.copy()
+    for key,item in original_parameters.items():
+        parameters[key] = item - learning_rate*backwards_propogation_results[f"d{key}"]
+    return parameters
 
-def get_predictions(A2:np.ndarray) -> np.ndarray:
-    return np.argmax(A2,0)
+def get_predictions(A_final:np.ndarray) -> np.ndarray:
+    return np.argmax(A_final,0)
 
 def get_accuracy(predictions:np.ndarray, Y:np.ndarray) -> float:
     return np.sum(predictions == Y) / Y.size
 
-def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:float) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:float) -> dict[str,np.ndarray]:
     unique_values = np.unique(Y, return_counts=False) # Finding all the unique class values in the array Y
     num_classes:int = len(unique_values)  # Count of unique values
-    parameters:dict[str,np.ndarray] = initialize_parameters(input_size=X.shape[0],hidden_layer_size=128,num_layers=5,output_size=num_classes)
+    parameters:dict[str,np.ndarray] = initialize_parameters(input_size=X.shape[0],hidden_layer_size=32,num_layers=5,output_size=num_classes)
     for i in range(iterations):
         forward_propogation_results:dict[str,np.ndarray] = forward_propogation(parameters, X)
-        dW1, db1, dW2, db2 = backwards_propogation(forward_propogation_results, W1, W2, X, Y)
-        W1, b1, W2, b2 = update_parameters(W1, b1, W2, b2, dW1, db1, dW2, db2, learning_rate)
+        backwards_propogation_results:dict[str,np.ndarray] = backwards_propogation(forward_propogation_results, parameters, X, Y)
+        parameters = update_parameters(parameters, backwards_propogation_results, learning_rate)
 
         if(i % 100 == 0):
             print(f"Iterations complete: {i:,.0f}/{iterations:,.0f}")
-            predictions = get_predictions(A2)
+            predictions = get_predictions(forward_propogation_results[next(reversed(forward_propogation_results))])
             print(f"Accuracy: {get_accuracy(predictions,Y)}\n")
-    return W1, b1, W2, b2
+    return parameters
         
-def make_predictions(X:np.ndarray, W1:np.ndarray, b1:np.ndarray, W2:np.ndarray, b2:np.ndarray):
-    _, _, _, A2 = forward_propogation(W1, b1, W2, b2, X)
-    predictions = get_predictions(A2)
+def make_predictions(X:np.ndarray, parameters:dict[str,np.ndarray]):
+    forward_propogation_results:dict[str,np.ndarray] = forward_propogation(parameters, X)
+    predictions = get_predictions(forward_propogation_results[next(reversed(forward_propogation_results))])
     return predictions
 
 def main():    
@@ -234,9 +249,9 @@ def main():
     # X_train = (X_train - np.mean(X_train, axis=0)) / np.std(X_train, axis=0)
     # X_test = (X_test - np.mean(X_test, axis=0)) / np.std(X_test, axis=0)
 
-    W1, b1, W2, b2 = gradient_descent(X_train, y_train, 1_000, 0.05)
-    train_predictions = make_predictions(X_train, W1, b1, W2, b2)
-    test_predictions = make_predictions(X_test, W1, b1, W2, b2)
+    parameters:dict[str,np.ndarray] = gradient_descent(X_train, y_train, 1_000, 0.05)
+    train_predictions = make_predictions(X_train, parameters)
+    test_predictions = make_predictions(X_test, parameters)
     accuracy_train:float = get_accuracy(train_predictions,y_train)
     accuracy_test:float = get_accuracy(test_predictions,y_test)
 
