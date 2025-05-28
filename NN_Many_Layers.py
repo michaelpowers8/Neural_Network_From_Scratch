@@ -226,7 +226,7 @@ def get_predictions(A_final:np.ndarray) -> np.ndarray:
 def get_accuracy(predictions:np.ndarray, Y:np.ndarray) -> float:
     return np.sum(predictions == Y) / Y.size
 
-def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:float) -> dict[str,np.ndarray]:
+def gradient_descent(X:np.ndarray, Y:np.ndarray, hidden_layer_size:int, number_of_layers:int, iterations:int, learning_rate:float) -> dict[str,np.ndarray]:
     unique_values = np.unique(Y, return_counts=False) # Finding all the unique class values in the array Y
     num_classes:int = len(unique_values)  # Count of unique values
     parameters:dict[str,np.ndarray] = initialize_parameters(input_size=X.shape[0],hidden_layer_size=32,num_layers=5,output_size=num_classes)
@@ -309,7 +309,7 @@ def main():
         accuracy_train:float = get_accuracy(train_predictions,y_train)
         accuracy_test:float = get_accuracy(test_predictions,y_test)
     except:
-        parameters:dict[str,np.ndarray] = gradient_descent(X_train, y_train, 1_000, 0.001)
+        parameters:dict[str,np.ndarray] = gradient_descent(X_train, y_train, 32, 1, 1_000, 0.001)
         train_predictions = make_predictions(X_train, parameters)
         test_predictions = make_predictions(X_test, parameters)
         accuracy_train:float = get_accuracy(train_predictions,y_train)
@@ -317,7 +317,7 @@ def main():
 
     print(f"NN Prediction accuracy on training set: {accuracy_train}\nNN Prediction accuracy on test set: {accuracy_test}")
 
-    for index in range(5):
+    for index in range(len(X_test)):
         test_prediction(index,X_test,y_test,parameters)
 
     save_model(parameters)
