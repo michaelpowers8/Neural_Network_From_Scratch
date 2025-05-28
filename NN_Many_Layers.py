@@ -1,16 +1,17 @@
 import numpy as np
 import pandas as pd
-from sklearn.datasets import make_classification
+import pickle
 import hashlib
 import sys
+from typing import Any
+import matplotlib.pyplot as plt
 
-def get_variable_info():
+def get_variable_info(local_variables:dict[str,Any]):
     # Get the current global and local variables
     globals_dict = globals()
-    locals_dict = locals()
     
     # Combine them, prioritizing locals (to avoid duplicates)
-    all_vars = {**globals_dict, **locals_dict}
+    all_vars = {**globals_dict, **local_variables}
     
     # Filter out modules, functions, and built-ins
     variable_info:list[dict[str,str|int|float|list|set|dict|bytes]] = []
@@ -43,6 +44,27 @@ def get_variable_info():
     df:pd.DataFrame = pd.DataFrame(variable_info)
     return df
 
+def convert(imgf, labelf, outf, n):
+    f = open(imgf, "rb")
+    o = open(outf, "w")
+    l = open(labelf, "rb")
+
+    f.read(16)
+    l.read(8)
+    images = []
+
+    for i in range(n):
+        image = [ord(l.read(1))]
+        for j in range(28*28):
+            image.append(ord(f.read(1)))
+        images.append(image)
+
+    for image in images:
+        o.write(",".join(str(pix) for pix in image)+"\n")
+    f.close()
+    o.close()
+    l.close()
+
 def initialize_parameters(input_size:int, hidden_layer_size:int, num_layers:int, output_size:int) -> dict[str,np.ndarray]:
     """
     Initialize random parameters for a new neural network.
@@ -53,12 +75,12 @@ def initialize_parameters(input_size:int, hidden_layer_size:int, num_layers:int,
     :return: All the weights and biases that will be used to run the training process in gradient descent for the neural network.
     """
     parameters:dict[str,np.ndarray] = {}
-    parameters["W1"] = np.random.rand(hidden_layer_size,input_size) * 0.01 # First weight that will be multiplied by all of the inputs
+    parameters["W1"] = np.random.randn(hidden_layer_size,input_size) * np.sqrt(2 / input_size) # First weight that will be multiplied by all of the inputs
     parameters["b1"] = np.zeros((hidden_layer_size,1)) # First constant bias term that will be added after each input is multiplied by W1 (can also be an array of 0's)
     for layer in range(2,num_layers+1,1):
-        parameters[f"W{layer:.0f}"] = np.random.rand(hidden_layer_size,hidden_layer_size) * np.sqrt(2 / input_size) # Nth weight that will be applied after the activation function (typically ReLU function)
+        parameters[f"W{layer:.0f}"] = np.random.randn(hidden_layer_size,hidden_layer_size) * np.sqrt(2 / hidden_layer_size) # Nth weight that will be applied after the activation function (typically ReLU function)
         parameters[f"b{layer:.0f}"] = np.zeros((hidden_layer_size,1)) # Nth constant bias term that will be added after each hiiden layer input is multiplied by W2(can also be an array of 0's)
-    parameters[f"W{num_layers+1:.0f}"] = np.random.rand(output_size,hidden_layer_size) * 0.01 # Final weight that will be applied after the activation function (typically ReLU function)
+    parameters[f"W{num_layers+1:.0f}"] = np.random.randn(output_size,hidden_layer_size) * np.sqrt(2 / hidden_layer_size) # Final weight that will be applied after the activation function (typically ReLU function)
     parameters[f"b{num_layers+1:.0f}"] = np.zeros((output_size,1)) # Final constant bias term that will be added after each hiiden layer input is multiplied by W2(can also be an array of 0's)
 
     return parameters
@@ -98,7 +120,7 @@ def derivative_Swish(Z:np.ndarray) -> np.ndarray:
     swish_Z:np.ndarray = swish(Z)
     return swish_Z-Z*np.power(sigmoid_Z,2)+sigmoid_Z
 
-def softmax(Z:np.ndarray) -> np.ndarray:
+def softmax(Z: np.ndarray) -> np.ndarray:
     """
     For every element in the input Z of length n, element i, raise e^Zi and then divide that by the sum of all elements of e^Zn 
 
@@ -110,8 +132,8 @@ def softmax(Z:np.ndarray) -> np.ndarray:
     --------
     >>> For 3 classes: resulting softmax -> [0.03  0.91  0.06] which means class at index 1 has the highest probability
     """
-    A = np.exp(Z) / sum(np.exp(Z))
-    return A
+    exp_Z = np.exp(Z - np.max(Z, axis=0, keepdims=True))
+    return exp_Z / np.sum(exp_Z, axis=0, keepdims=True)
 
 def forward_propogation(parameters:dict[str,np.ndarray], X:np.ndarray) -> dict[str,np.ndarray]:
     """
@@ -209,6 +231,7 @@ def gradient_descent(X:np.ndarray, Y:np.ndarray, iterations:int, learning_rate:f
     num_classes:int = len(unique_values)  # Count of unique values
     parameters:dict[str,np.ndarray] = initialize_parameters(input_size=X.shape[0],hidden_layer_size=32,num_layers=5,output_size=num_classes)
     for i in range(iterations):
+        learning_rate = 0.01 * (0.95 ** (i // 100))  # Decay every 100 steps
         forward_propogation_results:dict[str,np.ndarray] = forward_propogation(parameters, X)
         backwards_propogation_results:dict[str,np.ndarray] = backwards_propogation(forward_propogation_results, parameters, X, Y)
         parameters = update_parameters(parameters, backwards_propogation_results, learning_rate)
@@ -224,40 +247,81 @@ def make_predictions(X:np.ndarray, parameters:dict[str,np.ndarray]):
     predictions = get_predictions(forward_propogation_results[next(reversed(forward_propogation_results))])
     return predictions
 
-def main():    
-    random_state:int = 42
-    np.random.seed(random_state)
+def get_data() -> np.ndarray:
+    train = pd.read_csv("mnist_train.csv",header=None)
+    test = pd.read_csv("mnist_test.csv",header=None)
+    data = pd.concat([train,test],axis=0)
+    data = data.to_numpy()
+    return data
 
-    data = np.column_stack(make_classification(n_samples=10_000,n_features=8,n_informative=4,random_state=random_state,n_classes=2,n_clusters_per_class=2))
+def test_prediction(index:int, X:np.ndarray, Y:np.ndarray, parameters:dict[str,np.ndarray]):
+    current_image = X[:, index, None]
+    prediction = make_predictions(X[:, index, None], parameters)
+    label = Y[index]
+    print("Prediction: ", prediction)
+    print("Label: ", label)
+    
+    current_image = current_image.reshape((28, 28)) * 255
+    plt.gray()
+    plt.imshow(current_image, interpolation='nearest')
+    plt.show()
+
+def save_model(parameters:dict[str,np.ndarray]):
+    with open("trained_model.pkl", "wb") as f:
+        pickle.dump(parameters, f)
+    np.savez("trained_model.npz", **parameters)
+
+def load_model():
+    loaded = np.load("trained_model.npz")
+    parameters = {key: loaded[key] for key in loaded.files}
+    return parameters
+
+def main():
+    data:np.ndarray = get_data()
+    np.random.shuffle(data)
     training_data = data[0:(round(len(data)*0.8))]
     test_data = data[(round(len(data)*0.8)):]
-    # data = np.array(data) # Convert DataFrame to ndarray to allow mathematical manipulation easier and more efficient
 
     m,n = training_data.shape # M x N matrix where M is currently the number of example rows and N is the number of features per set plus the target column
     np.random.shuffle(data) # Shuffle data before splitting data into train and validating sets that are used in training
 
     test_data = test_data.T # Cross validation set to ensure overfitting not occurring. Transposed so columns represent examples
-    y_test:np.ndarray = test_data[-1] # Answer is the last value
+    y_test:np.ndarray = test_data[0] # Answer is the first value
     y_test:np.ndarray = y_test.astype(int)
-    X_test:np.ndarray = test_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
+    X_test:np.ndarray = test_data[1:n] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
 
     training_data = training_data.T # Actual training set that the neural network will see and learn from
-    y_train:np.ndarray = training_data[-1] # Answer is the last value
+    y_train:np.ndarray = training_data[0] # Answer is the first value
     y_train:np.ndarray = y_train.astype(int)
-    X_train:np.ndarray = training_data[0:n-1] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
+    X_train:np.ndarray = training_data[1:n] # Features that make up the data starting at index 0 which is the first feature to n which is the number of features as found in data.shape
+
+    X_train = X_train / 255.0
+    X_test = X_test / 255.0
+
 
     # X_train = (X_train - np.mean(X_train, axis=0)) / np.std(X_train, axis=0)
     # X_test = (X_test - np.mean(X_test, axis=0)) / np.std(X_test, axis=0)
 
-    parameters:dict[str,np.ndarray] = gradient_descent(X_train, y_train, 1_000, 0.05)
-    train_predictions = make_predictions(X_train, parameters)
-    test_predictions = make_predictions(X_test, parameters)
-    accuracy_train:float = get_accuracy(train_predictions,y_train)
-    accuracy_test:float = get_accuracy(test_predictions,y_test)
+    try:
+        parameters:dict[str,np.ndarray] = load_model()
+        train_predictions = make_predictions(X_train, parameters)
+        test_predictions = make_predictions(X_test, parameters)
+        accuracy_train:float = get_accuracy(train_predictions,y_train)
+        accuracy_test:float = get_accuracy(test_predictions,y_test)
+    except:
+        parameters:dict[str,np.ndarray] = gradient_descent(X_train, y_train, 1_000, 0.001)
+        train_predictions = make_predictions(X_train, parameters)
+        test_predictions = make_predictions(X_test, parameters)
+        accuracy_train:float = get_accuracy(train_predictions,y_train)
+        accuracy_test:float = get_accuracy(test_predictions,y_test)
 
     print(f"NN Prediction accuracy on training set: {accuracy_train}\nNN Prediction accuracy on test set: {accuracy_test}")
-    
-    get_variable_info().to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
+
+    for index in range(5):
+        test_prediction(index,X_test,y_test,parameters)
+
+    save_model(parameters)
+    get_variable_info(locals()).to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
 
 if __name__ == "__main__":
     main()
