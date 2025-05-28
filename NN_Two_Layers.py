@@ -234,7 +234,7 @@ def main():
     # X_train = (X_train - np.mean(X_train, axis=0)) / np.std(X_train, axis=0)
     # X_test = (X_test - np.mean(X_test, axis=0)) / np.std(X_test, axis=0)
 
-    W1, b1, W2, b2, W3, b3 = gradient_descent(X_train, y_train, 1_000, 0.01)
+    W1, b1, W2, b2, W3, b3 = gradient_descent(X_train, y_train, 10_000, 0.01)
     train_predictions = make_predictions(X_train, W1, b1, W2, b2, W3, b3)
     test_predictions = make_predictions(X_test, W1, b1, W2, b2, W3, b3)
     accuracy_train:float = get_accuracy(train_predictions,y_train)
