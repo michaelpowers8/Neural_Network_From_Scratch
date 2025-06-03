@@ -309,7 +309,7 @@ def main():
         accuracy_train:float = get_accuracy(train_predictions,y_train)
         accuracy_test:float = get_accuracy(test_predictions,y_test)
     except:
-        parameters:dict[str,np.ndarray] = gradient_descent(X_train, y_train, 32, 1, 1_000, 0.001)
+        parameters:dict[str,np.ndarray] = gradient_descent(X_train, y_train, 256, 10, 10_000, 0.001)
         train_predictions = make_predictions(X_train, parameters)
         test_predictions = make_predictions(X_test, parameters)
         accuracy_train:float = get_accuracy(train_predictions,y_train)
@@ -317,8 +317,8 @@ def main():
 
     print(f"NN Prediction accuracy on training set: {accuracy_train}\nNN Prediction accuracy on test set: {accuracy_test}")
 
-    for index in range(len(X_test)):
-        test_prediction(index,X_test,y_test,parameters)
+    # for index in range(10):
+    #     test_prediction(index,X_test,y_test,parameters)
 
     save_model(parameters)
     get_variable_info(locals()).to_json("Neural_Network_End_Variables.json",orient='table',indent=4)
