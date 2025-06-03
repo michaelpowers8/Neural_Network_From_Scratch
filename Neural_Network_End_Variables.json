@@ -32,21 +32,21 @@
             "index":0,
             "Variable Name":"data",
             "Type":"ndarray",
-            "Hash":"e55dda5402b4b291a855ef37c24bbef9d7fba937481fe441e478ce852f8ad5c0",
+            "Hash":"3622c2dca1e69e707a96de9d663b84deb849551f2dd6e71c352f3199b971ca66",
             "Size (bytes)":128
         },
         {
             "index":1,
             "Variable Name":"training_data",
             "Type":"ndarray",
-            "Hash":"7f506d1b7635fa90ae611abe7ac68a63a2ac25970daa1fa28139d367df666195",
+            "Hash":"23f1f40d3774fd40dd963f86610399b06428e5e925dbf30ec9b887ac43f7c90c",
             "Size (bytes)":128
         },
         {
             "index":2,
             "Variable Name":"test_data",
             "Type":"ndarray",
-            "Hash":"b93a05b49d79851c64deb9ec45036cb8872b744de73db9c54051b28c8a6785f1",
+            "Hash":"389f11e269eb7b48636069b71d7485c9508ff48ff2a2fa2ce0dab58bf1a7c818",
             "Size (bytes)":128
         },
         {
@@ -67,7 +67,7 @@
             "index":5,
             "Variable Name":"y_test",
             "Type":"ndarray",
-            "Hash":"467cb10ffc4827c8945762190fa1d338eb9fef8c6cbcc7933bc123489265f2a0",
+            "Hash":"955d8c07c69d9fd3a2e35a73baac7a7b28bc0457f2e17aaaa081ab68746282b4",
             "Size (bytes)":112112
         },
         {
@@ -81,7 +81,7 @@
             "index":7,
             "Variable Name":"y_train",
             "Type":"ndarray",
-            "Hash":"dd59b7348f7169b61fa3df5b84ef82526528c0bc4fa14175c04fd8d619169f69",
+            "Hash":"5c6fc0f3d1fd2e732fe8dd0fc17d8b9dba691fd57778bcc6672f3bcc9f974c58",
             "Size (bytes)":448112
         },
         {
@@ -95,43 +95,36 @@
             "index":9,
             "Variable Name":"parameters",
             "Type":"dict",
-            "Hash":"ff954c497cd933f401d15297a4f1d2613805a7245f74a030b4e037d6fcc4e2f3",
+            "Hash":"39f8100c26aa5fe8566e6bb86e75b64fc535d46f4f3a86ae8f3331c4d60e7b3b",
             "Size (bytes)":464
         },
         {
             "index":10,
             "Variable Name":"train_predictions",
             "Type":"ndarray",
-            "Hash":"dd59b7348f7169b61fa3df5b84ef82526528c0bc4fa14175c04fd8d619169f69",
+            "Hash":"5c6fc0f3d1fd2e732fe8dd0fc17d8b9dba691fd57778bcc6672f3bcc9f974c58",
             "Size (bytes)":448112
         },
         {
             "index":11,
             "Variable Name":"test_predictions",
             "Type":"ndarray",
-            "Hash":"47a850e52a3d03a406838cbcfc2dad46703327743873984076dbc5554553a592",
+            "Hash":"41892b2d1ef33fec87abbef7b60d04de7faedbe6d50cdac46be9e6318c449264",
             "Size (bytes)":112112
         },
         {
             "index":12,
             "Variable Name":"accuracy_train",
             "Type":"float64",
-            "Hash":"1f5453b83fd894a181fb68b1ba673a4093afdcdabefc65f50040cba5625a1a5c",
+            "Hash":"803873892783c171484822ad1ccd1d1e5be2efd46681d465acf3e9ab56f38f13",
             "Size (bytes)":32
         },
         {
             "index":13,
             "Variable Name":"accuracy_test",
             "Type":"float64",
-            "Hash":"c3389757864fc421a87d72920b5a70703036cac98ea3c5ef6980517bd2a9bc1a",
+            "Hash":"d8338256950b45e909f22084b3c9218e9aa314764f268714cb1dfab138606a14",
             "Size (bytes)":32
-        },
-        {
-            "index":14,
-            "Variable Name":"index",
-            "Type":"int",
-            "Hash":"4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
-            "Size (bytes)":28
         }
     ]
 }
