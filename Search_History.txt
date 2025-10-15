@@ -1,0 +1,314 @@
+#!/usr/bin/env python3
+import argparse
+import csv
+import glob
+import os
+import shutil
+import sqlite3
+import sys
+import tempfile
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+
+LOCAL_TZ = datetime.now().astimezone().tzinfo
+
+# ---------- Helpers
+
+def to_local(dt_utc: datetime) -> datetime:
+    if dt_utc.tzinfo is None:
+        dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+    return dt_utc.astimezone(LOCAL_TZ)
+
+def chrome_webkit_to_dt(micros_since_1601: int) -> datetime:
+    # Chromium stores microseconds since 1601-01-01 UTC
+    base = datetime(1601, 1, 1, tzinfo=timezone.utc)
+    return base + timedelta(microseconds=int(micros_since_1601))
+
+def firefox_moz_to_dt(microseconds_unix: int) -> datetime:
+    # Firefox stores microseconds since Unix epoch (1970)
+    return datetime.fromtimestamp(int(microseconds_unix) / 1_000_000, tz=timezone.utc)
+
+def safe_copy(src: Path) -> Path:
+    tmp = Path(tempfile.gettempdir()) / f"hist_tmp_{src.name}_{os.getpid()}"
+    shutil.copy2(src, tmp)
+    return tmp
+
+def within_since(dt: datetime, since_dt: datetime | None) -> bool:
+    return True if since_dt is None else (dt >= since_dt)
+
+# ---------- Where the databases live
+
+def candidate_paths_chromium() -> list[tuple[str, Path]]:
+    paths = []
+    home = Path.home()
+
+    # Windows
+    if os.name == "nt":
+        local = Path(os.environ.get("LOCALAPPDATA", ""))
+        # Chrome
+        paths += [(f"chrome:{p.name}", p / "History")
+                  for p in (local / "Google/Chrome/User Data").glob("*/*")
+                  if p.is_dir()]
+        # Edge
+        paths += [(f"edge:{p.name}", p / "History")
+                  for p in (local / "Microsoft/Edge/User Data").glob("*/*")
+                  if p.is_dir()]
+        # Brave
+        paths += [(f"brave:{p.name}", p / "History")
+                  for p in (local / "BraveSoftware/Brave-Browser/User Data").glob("*/*")
+                  if p.is_dir()]
+        # Opera/Opera GX (optional)
+        paths += [(f"opera:{p.name}", p / "History")
+                  for p in (local / "Opera Software").glob("**/History")
+                  if p.parent.is_dir()]
+    else:
+        # macOS
+        mac_base = home / "Library/Application Support"
+        candidates = [
+            ("chrome", mac_base / "Google/Chrome"),
+            ("edge", mac_base / "Microsoft Edge"),
+            ("brave", mac_base / "BraveSoftware/Brave-Browser"),
+            ("opera", mac_base / "com.operasoftware.Opera"),
+        ]
+        for browser, base in candidates:
+            for prof in base.glob("*"):
+                hist = prof / "History"
+                if hist.exists():
+                    paths.append((f"{browser}:{prof.name}", hist))
+
+        # Linux
+        linux_candidates = [
+            ("chrome", home / ".config/google-chrome"),
+            ("chromium", home / ".config/chromium"),
+            ("edge", home / ".config/microsoft-edge"),
+            ("brave", home / ".config/BraveSoftware/Brave-Browser"),
+            ("opera", home / ".config/opera"),
+        ]
+        for browser, base in linux_candidates:
+            for prof in base.glob("*"):
+                hist = prof / "History"
+                if hist.exists():
+                    paths.append((f"{browser}:{prof.name}", hist))
+
+    # De-dup and only keep files that exist
+    uniq = []
+    seen = set()
+    for name, p in paths:
+        if p.exists() and (name, str(p)) not in seen:
+            uniq.append((name, p))
+            seen.add((name, str(p)))
+    return uniq
+
+def candidate_paths_firefox() -> list[tuple[str, Path]]:
+    paths = []
+    home = Path.home()
+
+    if os.name == "nt":
+        appdata = Path(os.environ.get("APPDATA", "")) / "Mozilla/Firefox/Profiles"
+        base = appdata
+    elif sys.platform == "darwin":
+        base = home / "Library/Application Support/Firefox/Profiles"
+    else:
+        base = home / ".mozilla/firefox"
+
+    for prof in base.glob("*.default*"):
+        db = prof / "places.sqlite"
+        if db.exists():
+            paths.append((f"firefox:{prof.name}", db))
+    return paths
+
+# ---------- Search URL parsing
+
+SEARCH_ENGINES = {
+    # engine_domain_fragment: query_param(s)
+    "google.": ["q"],
+    "bing.com/search": ["q"],
+    "duckduckgo.com": ["q"],
+    "yahoo.com/search": ["p", "q"],
+    "startpage.com": ["query", "q"],
+    "ecosia.org/search": ["q"],
+    "search.brave.com": ["q"],
+    "yandex.": ["text", "q"],
+    "baidu.com/s": ["wd", "word"],
+    "youtube.com/results": ["search_query", "q"],
+    "reddit.com/search": ["q", "query"],
+    "kagi.com/search": ["q"],
+}
+
+def extract_query_if_search(url: str) -> tuple[str | None, str | None]:
+    """Return (engine, query) if URL looks like a search, else (None, None)."""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return (None, None)
+    netloc_path = (parsed.netloc + parsed.path).lower()
+
+    for key, params in SEARCH_ENGINES.items():
+        if key in netloc_path:
+            qs = parse_qs(parsed.query)
+            for p in params:
+                if p in qs and len(qs[p]) > 0:
+                    q = qs[p][0]
+                    if q.strip():
+                        return (key.split("/")[0], q.strip())
+    return (None, None)
+
+# ---------- Readers
+
+def read_chromium_searches(db_path: Path, since_dt: datetime | None):
+    # Prefer join with visits to get actual visit times; fall back to urls table if needed.
+    tmp = safe_copy(db_path)
+    try:
+        con = sqlite3.connect(tmp)
+        cur = con.cursor()
+        # Join visits to urls to get accurate per-visit timestamps.
+        cur.execute("""
+            SELECT urls.url, urls.title, visits.visit_time
+            FROM urls
+            JOIN visits ON visits.url = urls.id
+            ORDER BY visits.visit_time DESC
+        """)
+        for url, title, visit_time in cur.fetchall():
+            dt = chrome_webkit_to_dt(visit_time)
+            if not within_since(dt, since_dt):
+                continue
+            engine, q = extract_query_if_search(url)
+            if engine and q:
+                yield {
+                    "browser": f"{db_path.parent.parent.name.split()[0].lower()}",
+                    "profile": db_path.parent.name,
+                    "engine": engine,
+                    "query": q,
+                    "title": title or "",
+                    "url": url,
+                    "visited_at": to_local(dt).isoformat(),
+                }
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+def read_firefox_searches(db_path: Path, since_dt: datetime | None):
+    tmp = safe_copy(db_path)
+    try:
+        con = sqlite3.connect(tmp)
+        cur = con.cursor()
+        cur.execute("""
+            SELECT p.url, p.title, v.visit_date
+            FROM moz_places p
+            JOIN moz_historyvisits v ON v.place_id = p.id
+            ORDER BY v.visit_date DESC
+        """)
+        for url, title, visit_date in cur.fetchall():
+            if not visit_date:
+                continue
+            dt = firefox_moz_to_dt(visit_date)
+            if not within_since(dt, since_dt):
+                continue
+            engine, q = extract_query_if_search(url)
+            if engine and q:
+                yield {
+                    "browser": "firefox",
+                    "profile": db_path.parent.name,
+                    "engine": engine,
+                    "query": q,
+                    "title": title or "",
+                    "url": url,
+                    "visited_at": to_local(dt).isoformat(),
+                }
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+# ---------- Main
+
+def parse_since(arg: str | None) -> datetime | None:
+    if not arg:
+        return None
+    now = datetime.now(timezone.utc)
+    s = arg.strip().lower()
+    if s.endswith("d"):
+        days = int(s[:-1])
+        return now - timedelta(days=days)
+    if s.endswith("h"):
+        hours = int(s[:-1])
+        return now - timedelta(hours=hours)
+    if s.endswith("m"):
+        minutes = int(s[:-1])
+        return now - timedelta(minutes=minutes)
+    # Absolute ISO date/time
+    try:
+        dt = datetime.fromisoformat(arg)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=LOCAL_TZ).astimezone(timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        raise ValueError("Invalid --since. Use formats like 30d, 12h, 90m, or ISO 2025-10-01T00:00")
+
+def main():
+    ap = argparse.ArgumentParser(description="Extract browser SEARCH HISTORY (queries) to CSV.")
+    ap.add_argument("--since", help="Limit by recency (e.g., 7d, 12h, ISO datetime). Default: all.")
+    ap.add_argument("--out", default="searches.csv", help="Output CSV path.")
+    ap.add_argument("--browsers", nargs="*", choices=["chrome","edge","brave","chromium","opera","firefox"],
+                    help="Only scan these browsers.")
+    args = ap.parse_args()
+
+    since_dt = parse_since(args.since) if args.since else None
+
+    rows = []
+
+    # Chromium-family
+    if not args.browsers or any(b in args.browsers for b in ["chrome","edge","brave","chromium","opera"]):
+        for name, path in candidate_paths_chromium():
+            if args.browsers:
+                allowed = {b for b in args.browsers if b != "firefox"}
+                if name.split(":")[0] not in allowed:
+                    continue
+            try:
+                for row in read_chromium_searches(path, since_dt):
+                    # Put exact browser label from path prefix (e.g., "chrome", "edge", "brave", "chromium", "opera")
+                    row["browser"] = name.split(":")[0]
+                    row["profile"] = name.split(":")[1]
+                    rows.append(row)
+            except Exception as e:
+                print(f"[warn] {name}: {e}", file=sys.stderr)
+
+    # Firefox
+    if not args.browsers or "firefox" in args.browsers:
+        for name, path in candidate_paths_firefox():
+            try:
+                for row in read_firefox_searches(path, since_dt):
+                    rows.append(row)
+            except Exception as e:
+                print(f"[warn] {name}: {e}", file=sys.stderr)
+
+    # Sort newest first
+    def parse_iso(s): 
+        try: return datetime.fromisoformat(s)
+        except: return datetime.min.replace(tzinfo=LOCAL_TZ)
+    rows.sort(key=lambda r: parse_iso(r["visited_at"]), reverse=True)
+
+    # Write CSV
+    out_path = Path(args.out).expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=["visited_at","browser","profile","engine","query","title","url"])
+        w.writeheader()
+        w.writerows(rows)
+
+    print(f"Wrote {len(rows)} searches -> {out_path}")
+
+if __name__ == "__main__":
+    main()
